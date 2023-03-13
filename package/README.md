@@ -35,7 +35,7 @@ $ yarn add @sismo-core/hydra-s2
 
 ``` javascript
 
-const prover = new Hydra2Prover(
+const prover = new HydraS2Prover(
     registryTree,
     commitmentMapperPubKey,
     // + Optional override of the circuit path for ES module (see below for more information)

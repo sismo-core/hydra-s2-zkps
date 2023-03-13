@@ -25,7 +25,7 @@
   <a href="https://www.sismo.io/" target="_blank"></a>
 </div>
 
-Hydra-S2 is an upgrade of the [Hydra-S1](https://github.com/sismo-core/hydra-s1-zkps) Zero-Knowledge Proving Scheme. The major update concern the addition of the notion of vault used in the zkConnect to get a vaultIdentifier.
+Hydra-S2 is an upgrade of the [Hydra-S1](https://github.com/sismo-core/hydra-s1-zkps) Zero-Knowledge Proving Scheme. The major update concern the addition of the notion of vault used in the zkConnect.
 
 Hydra-S2 generates ZK Proofs from a merkle tree storing groups of accounts with values (e.g group of ENS DAO voters where the account value is the number of votes). 
 

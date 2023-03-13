@@ -9,7 +9,7 @@
   "types": "lib/index.d.ts",
   "scripts": {
     "build": "rollup -c && ./scripts/copy-files-in-lib.sh",
-    "build:new-trusted-setup": "yarn build && ./scripts/copy-wasm-zkey.sh "
+    "build:new-trusted-setup": "rollup -c && ./scripts/copy-wasm-zkey.sh && ./scripts/copy-files-in-lib.sh"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^22.0.0",
