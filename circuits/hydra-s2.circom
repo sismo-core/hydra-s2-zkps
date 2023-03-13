@@ -12,7 +12,7 @@ include "./common/verify-hydra-commitment.circom";
 
 // This is the circuit for the Hydra S2 Proving Scheme
 // please read this doc to understand the underlying concepts
-// https://hydra-s2.docs.sismo.io
+// https://docs.sismo.io/sismo-docs/technical-concepts/hydra-zk-proving-schemes
 template hydraS2(registryTreeHeight, accountsTreeHeight) {
   // Private inputs
   signal input sourceIdentifier;
