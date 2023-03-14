@@ -60,8 +60,8 @@ If this solution doesn't suite you or if you want to optimize the download time,
 #### ES modules (which can be overridden)
 
 ```javascript
-export const wasmPath = "https://static.sismo.io/hydra-s2-zkps/hydra-s2.wasm";
-export const zkeyPath = "https://static.sismo.io/hydra-s2-zkps/hydra-s2.zkey";
+export const wasmPath = "https://static.sismo.io/hydra-s2-zkps/v1/hydra-s2.wasm";
+export const zkeyPath = "https://static.sismo.io/hydra-s2-zkps/v1/hydra-s2.zkey";
 ```
 
 #### CommonJS
