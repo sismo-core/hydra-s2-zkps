@@ -27,13 +27,13 @@
 
 Hydra-S2 is an upgrade of the [Hydra-S1](https://github.com/sismo-core/hydra-s1-zkps) Zero-Knowledge Proving Scheme. The major update concern the addition of the notion of vault used in the zkConnect.
 
-Hydra-S2 generates ZK Proofs from a merkle tree storing groups of accounts with values (e.g group of ENS DAO voters where the account value is the number of votes). 
+Hydra-S2 generates ZK Proofs from a Merkle tree storing groups of accounts with values (e.g group of ENS DAO voters where the account value is the number of votes). 
 
-Hydra-S2 enables users to prove from these groups: 
+Hydra-S2 enables users to prove from these groups:
 - Ownerships: They own two accounts, a source account and a destination account. (via Hydra Delegate Proof of Ownership)
 - Account inclusion: Their source account is part of a group (e.g group ENS DAO voters)
 - Account value: Their source account holds a specific value (e.g number of votes in the group of ENS DAO voters) 
-- Nullifier Generation: They computed a proofIdentifier from an requestIdentifier. The proofIdentifier is deterministically generated from their source account and the requestIdentifier. It can be stored by proof verifiers to only accept one ZK Proof per account per requestIdentifier.
+- Nullifier Generation: A proofIdentifier was computed from a requestIdentifier and a vaultIdentifier from a vaultNamespace. The proofIdentifier is generated deterministically from the source account and the requestIdentifier. Proof verifiers can store it to ensure that only one ZK proof per account per requestIdentifier is accepted. The vaultIdentifier is also generated deterministically from the vault and vaultNamespace, and can be stored by apps to identify the owner of a specific vault in a specific namespace.
 
 ## Circuits and Package
 
