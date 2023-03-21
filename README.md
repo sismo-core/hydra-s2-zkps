@@ -25,15 +25,18 @@
   <a href="https://www.sismo.io/" target="_blank"></a>
 </div>
 
-Hydra-S2 is an upgrade of the [Hydra-S1](https://github.com/sismo-core/hydra-s1-zkps) Zero-Knowledge Proving Scheme. The major update concern the addition of the notion of vault used in the zkConnect.
+Hydra-S2 is an upgrade of the [Hydra-S1](https://github.com/sismo-core/hydra-s1-zkps) Zero-Knowledge Proving Scheme. The major update concerns the addition of the notion of a vault Identifier (vaultId) used in zkConnect.
 
-Hydra-S2 generates ZK Proofs from a Merkle tree storing groups of accounts with values (e.g group of ENS DAO voters where the account value is the number of votes). 
+Additionally, while Hydra-S1 only generates ZK Proofs from a Merkle tree storing groups of accounts with values (e.g group of ENS DAO voters where the account value is the number of votes), Hydra-S2 has a more modular approach. It is possible to only verify specific elements such as the Proof of Ownerships, the vaultId or only the inclusion of a specific account in a group for example.  
 
-Hydra-S2 enables users to prove from these groups:
-- Ownerships: They own two accounts, a source account and a destination account. (via Hydra Delegate Proof of Ownership)
-- Account inclusion: Their source account is part of a group (e.g group ENS DAO voters)
-- Account value: Their source account holds a specific value (e.g number of votes in the group of ENS DAO voters) 
-- Nullifier Generation: A proofIdentifier was computed from a requestIdentifier and a vaultIdentifier from a vaultNamespace. The proofIdentifier is generated deterministically from the source account and the requestIdentifier. Proof verifiers can store it to ensure that only one ZK proof per account per requestIdentifier is accepted. The vaultIdentifier is also generated deterministically from the vault and vaultNamespace, and can be stored by apps to identify the owner of a specific vault in a specific namespace.
+Therefore, Hydra-S2 enables users to generate ZK proofs for the following statements:
+- Ownerships (optional): They own two accounts, a source account and a destination account. (the two are optional, it is possible to only verify the ownership of a single account, or neither of the two)
+- Account inclusion (optional): Their source account is part of a group (we can choose to not check the Merkle proof)
+- Account value (optional): Their source account holds a specific value 
+- Vault Identifier Generation (optional): The vaultIdentifier is generated deterministically from the vault secret and vaultNamespace (an appId), and can be stored by apps to identify the owner of a specific vault for a specific application.
+- Proof Identifier Generation (optional): The proofIdentifier is generated deterministically from the source account and a requestIdentifier. Proof verifiers can store it to ensure that only one ZK proof per account per requestIdentifier is accepted. A request identifier is deterministically generated from an appId, a groupId, a groupTimestamp and a namespace.
+
+You can see additional details in the [Hydra-S2 documentation](https://docs.sismo.io/sismo-docs/technical-concepts/hydra-zk-proving-schemes/hydra-s2).
 
 ## Circuits and Package
 
