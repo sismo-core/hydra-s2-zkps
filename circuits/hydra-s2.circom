@@ -18,6 +18,7 @@ template hydraS2(registryTreeHeight, accountsTreeHeight) {
   signal input sourceIdentifier;
   signal input sourceSecret;
   signal input vaultSecret;
+  signal input sourceVaultNamespace;
   signal input sourceCommitmentReceipt[3];
   signal input destinationSecret; 
   signal input destinationCommitmentReceipt[3];
@@ -43,13 +44,28 @@ template hydraS2(registryTreeHeight, accountsTreeHeight) {
   signal input sourceVerificationEnabled;
   signal input destinationVerificationEnabled;
 
+  // Verify if the vaultNamespace is 0 then we don't verify the vaultIdentifier
+  component sourceVaultNamespaceIsZero = IsZero();
+  sourceVaultNamespaceIsZero.in <== sourceVaultNamespace;
+
+  // Verify vaultId as source using vault secret and sourceVaultNamespace
+  component sourceVaultIdentifierHasher = Poseidon(2);
+  sourceVaultIdentifierHasher.inputs[0] <== vaultSecret;
+  sourceVaultIdentifierHasher.inputs[1] <== sourceVaultNamespace;
+  // check the constraint only if sourceVaultNamespace is not 0
+  
+  signal sourceIdentifierVerifiedByVaultSecret;
+  sourceIdentifierVerifiedByVaultSecret <== (sourceVaultIdentifierHasher.out - sourceIdentifier) * (1 - sourceVaultNamespaceIsZero.out);
+  // if source verificationEnabled is 0 this constraint is not checked
+  sourceIdentifierVerifiedByVaultSecret * sourceVerificationEnabled === 0;
+
   // Verify the source account went through the Hydra Delegated Proof of Ownership
   // That means the user own the source address
   component sourceCommitmentVerification = VerifyHydraCommitment();
   sourceCommitmentVerification.address <== sourceIdentifier;
   sourceCommitmentVerification.vaultSecret <== vaultSecret; 
   sourceCommitmentVerification.accountSecret <== sourceSecret; 
-  sourceCommitmentVerification.enabled <== sourceVerificationEnabled; 
+  sourceCommitmentVerification.enabled <== sourceVaultNamespaceIsZero.out * sourceVerificationEnabled; 
   sourceCommitmentVerification.commitmentMapperPubKey[0] <== commitmentMapperPubKey[0];
   sourceCommitmentVerification.commitmentMapperPubKey[1] <== commitmentMapperPubKey[1];
   sourceCommitmentVerification.commitmentReceipt[0] <== sourceCommitmentReceipt[0];
