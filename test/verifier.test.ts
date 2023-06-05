@@ -101,7 +101,7 @@ describe("Hydra S2 Verifier", () => {
     const statementValue = BigNumber.from(
       merkleTreeData[BigNumber.from(source.identifier).toHexString()]
     );
-
+    
     proof = await prover.generateSnarkProof({
       vault,
       source,

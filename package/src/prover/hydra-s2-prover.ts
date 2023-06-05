@@ -12,6 +12,7 @@ import { wasmPath, zkeyPath } from "./files";
 import { SnarkProof } from "./snark-proof";
 import { Inputs } from "./types";
 import { verifyCommitment } from "./utils/verify-commitment";
+import { isSourceHydraS2Account } from "./utils/isSourceHydraS2Account";
 
 export type CircuitPath = { wasmPath: string; zkeyPath: string } | null;
 
@@ -21,9 +22,19 @@ export type HydraS2Account = {
   commitmentReceipt: [BigNumberish, BigNumberish, BigNumberish];
 };
 
-export type VaultInput = {
+export type VaultAccount = {
+  identifier: BigNumberish;
   secret: BigNumberish;
   namespace: BigNumberish;
+};
+
+export type SourceInput = (HydraS2Account | VaultAccount) & { 
+  verificationEnabled: boolean 
+};
+
+export type VaultInput = {
+  secret: BigNumberish;
+  namespace?: BigNumberish;
 };
 
 export type StatementInput = {
@@ -35,13 +46,12 @@ export type StatementInput = {
   accountsTree: KVMerkleTree;
 };
 
-export type SourceInput = HydraS2Account & { verificationEnabled: boolean };
 export type DestinationInput = Partial<HydraS2Account> & {
   verificationEnabled: boolean;
 };
 
 export type UserParams = {
-  vault: VaultInput;
+  vault?: VaultInput;
   source?: SourceInput;
   destination?: DestinationInput;
   statement?: StatementInput;
@@ -53,6 +63,7 @@ export type formattedUserParams = {
   vaultSecret: BigInt;
   vaultNamespace: BigInt;
   vaultIdentifier: BigInt;
+  sourceVaultNamespace: BigInt;
   sourceIdentifier: BigInt;
   sourceSecret: BigInt;
   sourceCommitmentReceipt: BigInt[];
@@ -89,16 +100,33 @@ export class HydraS2Prover {
     extraData: extraDataInput,
   }: UserParams): Promise<formattedUserParams> {
     const poseidon = await buildPoseidon();
-    const vaultSecret = BigNumber.from(vault.secret).toBigInt();
-    const vaultNamespace = BigNumber.from(vault.namespace).toBigInt();
-    const vaultIdentifier = poseidon([vaultSecret, vaultNamespace]).toBigInt();
-    const sourceIdentifier = BigNumber.from(source?.identifier ?? 0).toBigInt();
-    const sourceSecret = BigNumber.from(source?.secret ?? 0).toBigInt();
+
+    if (vault?.secret && source?.secret && !isSourceHydraS2Account(source) && !BigNumber.from(vault.secret).eq(source?.secret)) {
+      throw new Error("vault.secret must be identical to source.secret");
+    }
+    const vaultSecret = BigNumber.from(vault?.secret ?? source?.secret).toBigInt();
+
+    const vaultNamespace = BigNumber.from(vault?.namespace ?? 0).toBigInt();
+    const vaultIdentifier = vault?.namespace ? poseidon([vaultSecret, vaultNamespace]).toBigInt() : BigNumber.from(0).toBigInt();
+
     const mapArrayToBigInt = (arr: BigNumberish[]) =>
       arr.map((el) => BigNumber.from(el).toBigInt());
-    const sourceCommitmentReceipt = source?.commitmentReceipt
-      ? mapArrayToBigInt(source?.commitmentReceipt)
-      : [BigInt(0), BigInt(0), BigInt(0)];
+
+    const sourceIdentifier = BigNumber.from(source?.identifier ?? 0).toBigInt();
+    let sourceCommitmentReceipt = [BigInt(0), BigInt(0), BigInt(0)];
+    let sourceSecret = BigNumber.from(0).toBigInt();
+    let sourceVaultNamespace = BigNumber.from(0).toBigInt();
+
+    if (source && isSourceHydraS2Account(source)) {
+      source = source as HydraS2Account & { verificationEnabled: boolean };
+      sourceCommitmentReceipt = mapArrayToBigInt(source.commitmentReceipt);
+      sourceSecret = BigNumber.from(source.secret).toBigInt();
+    }
+    if (source && !isSourceHydraS2Account(source)) {
+      source = source as VaultAccount & { verificationEnabled: boolean };
+      sourceVaultNamespace = BigNumber.from(source.namespace).toBigInt();
+    }
+
     const destinationIdentifier = BigNumber.from(
       destination?.identifier ?? 0
     ).toBigInt();
@@ -134,6 +162,7 @@ export class HydraS2Prover {
       vaultSecret,
       vaultNamespace,
       vaultIdentifier,
+      sourceVaultNamespace,
       sourceIdentifier,
       sourceSecret,
       sourceCommitmentReceipt,
@@ -162,6 +191,7 @@ export class HydraS2Prover {
       vaultSecret,
       vaultNamespace,
       vaultIdentifier,
+      sourceVaultNamespace,
       sourceIdentifier,
       sourceSecret,
       sourceCommitmentReceipt,
@@ -199,20 +229,23 @@ export class HydraS2Prover {
     const mapArrayToBigInt = (arr: BigNumberish[]) =>
       arr.map((el) => BigNumber.from(el).toBigInt());
 
-    const zeroPaddedSourceIdentifier = ethers.utils.hexZeroPad(
-      ethers.utils.hexlify(BigNumber.from(sourceIdentifier)),
-      20
-    );
+    const zeroPaddedSourceIdentifier = sourceVaultNamespace ? ethers.utils.hexlify(BigNumber.from(sourceIdentifier)) : ethers.utils.hexZeroPad(
+        ethers.utils.hexlify(BigNumber.from(sourceIdentifier)),
+        20
+      );
+  
     const accountMerklePath = accountsTree
-      ? accountsTree.getMerklePathFromKey(zeroPaddedSourceIdentifier)
-      : emptyMerklePath;
+        ? accountsTree.getMerklePathFromKey(zeroPaddedSourceIdentifier)
+        : emptyMerklePath;
+  
     const sourceValue = accountsTree
-      ? accountsTree.getValue(zeroPaddedSourceIdentifier).toBigInt()
-      : BigInt(0);
+        ? accountsTree.getValue(zeroPaddedSourceIdentifier).toBigInt()
+        : BigInt(0);
 
     const registryMerklePath: MerklePath = accountsTree
       ? registryTree!.getMerklePathFromKey(accountsTree.getRoot().toHexString())
       : emptyMerklePath;
+
     const accountsTreeValue = accountsTree
       ? registryTree!.getValue(accountsTree.getRoot().toHexString()).toBigInt()
       : BigInt(0);
@@ -229,6 +262,7 @@ export class HydraS2Prover {
       vaultSecret,
       sourceIdentifier,
       sourceSecret,
+      sourceVaultNamespace,
       sourceCommitmentReceipt,
       destinationSecret,
       destinationCommitmentReceipt,
@@ -272,6 +306,7 @@ export class HydraS2Prover {
     const {
       vaultSecret,
       vaultIdentifier,
+      sourceVaultNamespace,
       sourceIdentifier,
       sourceSecret,
       sourceCommitmentReceipt,
@@ -314,10 +349,11 @@ export class HydraS2Prover {
         throw new Error("Invalid Accounts tree height");
 
       let sourceValue;
-      const zeroPaddedSourceIdentifier = ethers.utils.hexZeroPad(
-        ethers.utils.hexlify(BigNumber.from(sourceIdentifier)),
-        20
-      );
+      const zeroPaddedSourceIdentifier = sourceVaultNamespace ? ethers.utils.hexlify(BigNumber.from(sourceIdentifier)) : ethers.utils.hexZeroPad(
+          ethers.utils.hexlify(BigNumber.from(sourceIdentifier)),
+          20
+        );
+
       try {
         sourceValue = accountsTree
           .getValue(zeroPaddedSourceIdentifier)
@@ -345,7 +381,7 @@ export class HydraS2Prover {
       }
     }
 
-    if (sourceVerificationEnabled) {
+    if (sourceVerificationEnabled && isSourceHydraS2Account(source)) {
       const isSourceCommitmentValid = await verifyCommitment(
         sourceIdentifier,
         vaultSecret,
@@ -355,6 +391,14 @@ export class HydraS2Prover {
       );
       if (!isSourceCommitmentValid)
         throw new Error("Invalid source commitment receipt");
+    }
+
+    if (sourceVerificationEnabled && !isSourceHydraS2Account(source)) {
+      const poseidon = await buildPoseidon();
+      const sourceVaultId = poseidon([vaultSecret, sourceVaultNamespace]);
+      if (!sourceVaultId.eq(BigNumber.from(sourceIdentifier))) {
+        throw new Error("Invalid source namespace");
+      }
     }
 
     if (destinationVerificationEnabled) {
@@ -376,6 +420,11 @@ export class HydraS2Prover {
       );
     }
     if (vaultIdentifier > SnarkField) {
+      throw new Error(
+        "Vault identifier overflow the snark field, please use vault identifier inside the snark field"
+      );
+    }
+    if (sourceIdentifier > SnarkField) {
       throw new Error(
         "Source identifier overflow the snark field, please use source identifier inside the snark field"
       );

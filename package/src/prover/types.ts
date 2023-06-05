@@ -1,6 +1,7 @@
 export type PrivateInputs = {
   sourceIdentifier: BigInt;
   sourceSecret: BigInt;
+  sourceVaultNamespace: BigInt;
   vaultSecret: BigInt;
   sourceCommitmentReceipt: BigInt[];
   destinationSecret: BigInt;
