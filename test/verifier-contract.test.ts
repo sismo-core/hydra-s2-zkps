@@ -113,7 +113,7 @@ describe("Hydra S2 Verifier contract", () => {
       verificationEnabled: true,
       chainId: parseInt(await hre.getChainId()),
     };
-    const statementValue = BigNumber.from(
+    const claimValue = BigNumber.from(
       merkleTreeData[BigNumber.from(source.identifier).toHexString()]
     );
 
@@ -121,8 +121,8 @@ describe("Hydra S2 Verifier contract", () => {
       vault,
       source,
       destination,
-      statement: {
-        value: statementValue,
+      claim: {
+        value: claimValue,
         comparator: 1,
         accountsTree: accountsTree,
         registryTree: registryTree,

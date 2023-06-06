@@ -31,15 +31,18 @@ describe("Hydra S2 Prover", () => {
   let poseidon: Poseidon;
   let accountsTree1: KVMerkleTree;
   let merkleTreeData1: MerkleTreeData;
+  let merkleTreeData2: MerkleTreeData;
   let accountsTree2: KVMerkleTree;
+  let accountsTree3: KVMerkleTree;
   let prover: HydraS2Prover;
   let extraData: string;
   let source: SourceInput;
   let destination: DestinationInput;
   let sourceValue: BigNumber;
   let snarkProof: SnarkProof;
-  let statementComparator: 0 | 1;
+  let claimComparator: 0 | 1;
   let vault: VaultInput;
+  let sourceVault: SourceInput;
 
   before(async () => {
     poseidon = await buildPoseidon();
@@ -47,6 +50,7 @@ describe("Hydra S2 Prover", () => {
 
     const vaultSecret = BigNumber.from("0x123456");
     const vaultNamespace = BigNumber.from(123);
+    const sourceVaultNamespace = BigNumber.from(456);
     vault = {
       secret: vaultSecret,
       namespace: vaultNamespace,
@@ -85,15 +89,27 @@ describe("Hydra S2 Prover", () => {
         20
       )]: 7,
     };
-
     accountsTree1 = new KVMerkleTree(
       merkleTreeData1,
       poseidon,
       ACCOUNTS_TREE_HEIGHT
     );
 
+    const sourceVaultId = poseidon([vaultSecret, sourceVaultNamespace]).toHexString();
+    merkleTreeData2 = {
+      [sourceVaultId]: 4,
+      [BigNumber.from(1).toHexString()]: 2,
+      [BigNumber.from(2).toHexString()]: 5
+    };
+    accountsTree3 = new KVMerkleTree(
+      merkleTreeData2,
+      poseidon,
+      ACCOUNTS_TREE_HEIGHT
+    );
+
     registryTree = new KVMerkleTree(
       {
+        [accountsTree3.getRoot().toHexString()]: 2,
         [accountsTree1.getRoot().toHexString()]: 1,
       },
       poseidon,
@@ -104,6 +120,12 @@ describe("Hydra S2 Prover", () => {
 
     extraData = "0x123345345";
 
+    sourceVault = {
+      identifier: sourceVaultId,
+      namespace: sourceVaultNamespace,
+      secret: vaultSecret,
+      verificationEnabled: true,
+    };
     source = {
       ...accounts[0],
       verificationEnabled: true,
@@ -117,17 +139,20 @@ describe("Hydra S2 Prover", () => {
       merkleTreeData1[BigNumber.from(source.identifier).toHexString()]
     );
 
-    statementComparator = registryTree
+    claimComparator = registryTree
       .getValue(accountsTree1.getRoot().toHexString())
       .toNumber() as 0 | 1;
   });
 
-  it("Should generate a snark proof with correct inputs", async () => {
+
+  it("Should generate a snark proof without the vault namespace", async () => {
     snarkProof = await prover.generateSnarkProof({
-      vault,
+      vault: {
+        secret: vault.secret
+      },
       source,
       destination,
-      statement: {
+      claim: {
         value: sourceValue,
         comparator: 0,
         accountsTree: accountsTree1,
@@ -142,7 +167,75 @@ describe("Hydra S2 Prover", () => {
       "4885599045",
       "3268380547641047729088085784617708493474401130426516096643943726492544573596",
       "15390691699624678165709040191639591743681460873292995904381058558679154201615",
-      "2239886174460707204370256878761962330187476314139148528390622981963521260926",
+      "12605935189044447327021059351303684088672843431237753945682029564538672096063",
+      "123",
+      "8075686738959054507695243166556461654566805841122075512669335921145764546801",
+      "4",
+      "1",
+      "0",
+      "0",
+      "0",
+      "1",
+      "1",
+    ]);
+  });
+
+  it("Should generate a snark proof with a VaultAccount as source", async () => {
+    snarkProof = await prover.generateSnarkProof({
+      vault: {
+        secret: vault.secret
+      },
+      source: sourceVault,
+      destination,
+      claim: {
+        value: sourceValue,
+        comparator: 0,
+        accountsTree: accountsTree3,
+        registryTree,
+      },
+      requestIdentifier,
+      extraData,
+    });
+
+    expect(snarkProof.input).to.deep.equal([
+      "454499773101623097675665140164886290476978118997",
+      "4885599045",
+      "3268380547641047729088085784617708493474401130426516096643943726492544573596",
+      "15390691699624678165709040191639591743681460873292995904381058558679154201615",
+      "12605935189044447327021059351303684088672843431237753945682029564538672096063",
+      "123",
+      "8075686738959054507695243166556461654566805841122075512669335921145764546801",
+      "4",
+      "2",
+      "0",
+      "0",
+      "0",
+      "1",
+      "1",
+    ]);
+  });
+
+  it("Should generate a snark proof with correct inputs", async () => {
+    snarkProof = await prover.generateSnarkProof({
+      vault,
+      source,
+      destination,
+      claim: {
+        value: sourceValue,
+        comparator: 0,
+        accountsTree: accountsTree1,
+        registryTree,
+      },
+      requestIdentifier,
+      extraData,
+    });
+
+    expect(snarkProof.input).to.deep.equal([
+      "454499773101623097675665140164886290476978118997",
+      "4885599045",
+      "3268380547641047729088085784617708493474401130426516096643943726492544573596",
+      "15390691699624678165709040191639591743681460873292995904381058558679154201615",
+      "12605935189044447327021059351303684088672843431237753945682029564538672096063",
       "123",
       "8075686738959054507695243166556461654566805841122075512669335921145764546801",
       "4",
@@ -161,6 +254,7 @@ describe("Hydra S2 Prover", () => {
           20
         )
       ];
+
     const secondSnarkProof = await prover.generateSnarkProof({
       vault,
       source: {
@@ -168,7 +262,7 @@ describe("Hydra S2 Prover", () => {
         verificationEnabled: true,
       },
       destination,
-      statement: {
+      claim: {
         value: account19Value,
         comparator: 1,
         accountsTree: accountsTree1,
@@ -182,7 +276,7 @@ describe("Hydra S2 Prover", () => {
       "0",
       "3268380547641047729088085784617708493474401130426516096643943726492544573596",
       "15390691699624678165709040191639591743681460873292995904381058558679154201615",
-      "2239886174460707204370256878761962330187476314139148528390622981963521260926",
+      "12605935189044447327021059351303684088672843431237753945682029564538672096063",
       "123",
       "15308508994751661638002446427622257142997575318999224286421872638048029013084",
       "7",
@@ -197,7 +291,7 @@ describe("Hydra S2 Prover", () => {
 
   it("Should export the proof in Bytes", async () => {
     expect(snarkProof.toBytes().substring(514)).to.equal(
-      "0000000000000000000000004f9c798553d207536b79e886b54f169264a7a15500000000000000000000000000000000000000000000000000000001233453450739d67c4d0c90837361c2fe595d11dfecc2847dc41e1ef0da8201c0b16aa09c2206d2a327e39f643e508f5a08e922990cceba9610c15f9a94ef30d6dd54940f04f3bb0bc061e4c1df1767a6bb2e314f9e3f05bb44f19e468eac50a54580fd7e000000000000000000000000000000000000000000000000000000000000007b11daad3d3b51d9cb5b3fe940a00f3e4da0f9bafff28d088f3f202dbd412a88f10000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000002d26e8cd86be758573f24bea0fe037b793a9f1bbf6aadb54360a0542aabc3fb1000000000000000000000000000000000000000000000000000000000000007b00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001"
+      "0000000000000000000000004f9c798553d207536b79e886b54f169264a7a15500000000000000000000000000000000000000000000000000000001233453450739d67c4d0c90837361c2fe595d11dfecc2847dc41e1ef0da8201c0b16aa09c2206d2a327e39f643e508f5a08e922990cceba9610c15f9a94ef30d6dd54940f1bdeb4db623a998799dcc366d056ff9077af82bff96f75032ec3e77a6787a33f000000000000000000000000000000000000000000000000000000000000007b11daad3d3b51d9cb5b3fe940a00f3e4da0f9bafff28d088f3f202dbd412a88f10000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000002d26e8cd86be758573f24bea0fe037b793a9f1bbf6aadb54360a0542aabc3fb1000000000000000000000000000000000000000000000000000000000000007b00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001"
     );
   });
 
@@ -232,6 +326,25 @@ describe("Hydra S2 Prover", () => {
     });
   });
 
+  it("Should have input of VaultIdentifier equal to 0 without vault namespace", async () => {
+    const res = await prover.generateSnarkProof({
+      vault: {
+        secret: vault.secret,
+        namespace: 0
+      },
+      source: sourceVault,
+      destination,
+      claim: {
+        value: sourceValue,
+        accountsTree: accountsTree3,
+        registryTree,
+        comparator: 0,
+      },
+      requestIdentifier,
+    });
+    expect(res.input[10]).to.equal("0");
+  });
+
   it("Snark proof of simple value in a merkleTree with simple proofIdentifier without destination verification", async () => {
     snarkProof = await prover.generateSnarkProof({
       vault,
@@ -240,7 +353,7 @@ describe("Hydra S2 Prover", () => {
         identifier: destination.identifier,
         verificationEnabled: false,
       },
-      statement: {
+      claim: {
         value: sourceValue,
         comparator: 0,
         accountsTree: accountsTree1,
@@ -268,7 +381,7 @@ describe("Hydra S2 Prover", () => {
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           accountsTree: accountsTree2,
           registryTree: registryTree2,
           value: sourceValue,
@@ -296,7 +409,7 @@ describe("Hydra S2 Prover", () => {
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: sourceValue,
           registryTree: registryTree3,
           accountsTree: accountsTree1,
@@ -309,6 +422,66 @@ describe("Hydra S2 Prover", () => {
     }
   });
 
+  it("Should throw with invalid source namespace", async () => {
+    try {
+      await prover.generateSnarkProof({
+        vault,
+        source: {
+          ...sourceVault,
+          namespace: BigNumber.from(3)
+        },
+        destination,
+        claim: {
+          value: sourceValue,
+          comparator: 0,
+          accountsTree: accountsTree3,
+          registryTree,
+        },
+        requestIdentifier,
+      });
+    } catch (e: any) {
+      expect(e.message).to.equal("Invalid source namespace");
+    }
+  });
+
+  it("Should not check the source namespace with a source verification false", async () => {
+    await prover.generateSnarkProof({
+      vault,
+      source: {
+        ...sourceVault,
+        namespace: BigNumber.from(3),
+        verificationEnabled: false
+      },
+      destination,
+      claim: {
+        value: sourceValue,
+        comparator: 0,
+        accountsTree: accountsTree3,
+        registryTree,
+      },
+      requestIdentifier,
+    });
+  });
+
+  it("Should not check the source secret with a source verification false", async () => {
+    await prover.generateSnarkProof({
+      vault,
+      source: {
+        ...source,
+        secret: BigNumber.from(3),
+        verificationEnabled: false
+      },
+      destination,
+      claim: {
+        value: sourceValue,
+        comparator: 0,
+        accountsTree: accountsTree1,
+        registryTree,
+      },
+      requestIdentifier,
+    });
+  });
+
   it("Should throw with invalid source secret", async () => {
     try {
       await prover.generateSnarkProof({
@@ -318,7 +491,7 @@ describe("Hydra S2 Prover", () => {
           secret: BigNumber.from(3),
         },
         destination,
-        statement: {
+        claim: {
           value: sourceValue,
           comparator: 0,
           accountsTree: accountsTree1,
@@ -328,6 +501,28 @@ describe("Hydra S2 Prover", () => {
       });
     } catch (e: any) {
       expect(e.message).to.equal("Invalid source commitment receipt");
+    }
+  });
+
+  it("Should throw with 2 different secret", async () => {
+    try {
+      await prover.generateSnarkProof({
+        vault: {
+          secret: vault.secret
+        },
+        source: sourceVault,
+        destination,
+        claim: {
+          value: sourceValue,
+          comparator: 0,
+          accountsTree: accountsTree3,
+          registryTree,
+        },
+        requestIdentifier,
+        extraData,
+      });
+    } catch (e: any) {
+      expect(e.message).to.equal("vault.secret must be identical to source.secret");
     }
   });
 
@@ -344,7 +539,7 @@ describe("Hydra S2 Prover", () => {
           ],
         },
         destination,
-        statement: {
+        claim: {
           value: sourceValue,
           comparator: 0,
           accountsTree: accountsTree1,
@@ -366,7 +561,7 @@ describe("Hydra S2 Prover", () => {
           ...destination,
           secret: BigNumber.from(3),
         },
-        statement: {
+        claim: {
           value: sourceValue,
           comparator: 0,
           accountsTree: accountsTree1,
@@ -392,7 +587,7 @@ describe("Hydra S2 Prover", () => {
             BigNumber.from(3),
           ],
         },
-        statement: {
+        claim: {
           value: sourceValue,
           comparator: 0,
           accountsTree: accountsTree1,
@@ -405,13 +600,13 @@ describe("Hydra S2 Prover", () => {
     }
   });
 
-  it("Should throw when sending statementValue > sourceValue", async () => {
+  it("Should throw when sending claimValue > sourceValue", async () => {
     try {
       await prover.generateSnarkProof({
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(10),
           comparator: 0,
           accountsTree: accountsTree1,
@@ -421,18 +616,18 @@ describe("Hydra S2 Prover", () => {
       });
     } catch (e: any) {
       expect(e.message).to.equal(
-        `Statement value 10 can't be superior to Source value`
+        `Claim value 10 can't be superior to Source value`
       );
     }
   });
 
-  it("Should throw when sending statementValue is not equal to sourceValue and statementComparator == 1 (EQ)", async () => {
+  it("Should throw when sending claimValue is not equal to sourceValue and claimComparator == 1 (EQ)", async () => {
     try {
       await prover.generateSnarkProof({
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(3),
           comparator: 1,
           accountsTree: accountsTree1,
@@ -442,18 +637,18 @@ describe("Hydra S2 Prover", () => {
       });
     } catch (e: any) {
       expect(e.message).to.equal(
-        `Statement value 3 must be equal with Source value when statementComparator == 1`
+        `Claim value 3 must be equal with Source value when claimComparator == 1`
       );
     }
   });
 
-  it("Should throw when sending statementValue negative", async () => {
+  it("Should throw when sending claimValue negative", async () => {
     try {
       await prover.generateSnarkProof({
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(-3),
           comparator: 0,
           accountsTree: accountsTree1,
@@ -462,7 +657,7 @@ describe("Hydra S2 Prover", () => {
         requestIdentifier,
       });
     } catch (e: any) {
-      expect(e.message).to.equal(`Statement value -3 can't be negative`);
+      expect(e.message).to.equal(`Claim value -3 can't be negative`);
     }
   });
 
@@ -484,7 +679,7 @@ describe("Hydra S2 Prover", () => {
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(4),
           accountsTree: accountsTree,
           registryTree,
@@ -509,7 +704,7 @@ describe("Hydra S2 Prover", () => {
           verificationEnabled: true,
         },
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(4),
           comparator: 0,
           accountsTree: accountsTree1,

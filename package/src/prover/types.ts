@@ -1,6 +1,7 @@
 export type PrivateInputs = {
   sourceIdentifier: BigInt;
   sourceSecret: BigInt;
+  sourceVaultNamespace: BigInt;
   vaultSecret: BigInt;
   sourceCommitmentReceipt: BigInt[];
   destinationSecret: BigInt;
@@ -21,9 +22,9 @@ export type PublicInputs = {
   requestIdentifier: BigInt;
   proofIdentifier: BigInt;
   destinationIdentifier: BigInt;
-  statementValue: BigInt;
+  claimValue: BigInt;
   accountsTreeValue: BigInt;
-  statementComparator: BigInt;
+  claimComparator: BigInt;
   sourceVerificationEnabled: BigInt;
   destinationVerificationEnabled: BigInt;
   extraData: BigInt;

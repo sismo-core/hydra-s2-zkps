@@ -34,16 +34,21 @@ describe("Hydra S2 Circuits", () => {
   let registryTree: KVMerkleTree;
   let poseidon: Poseidon;
   let inputs: PublicInputs & PrivateInputs;
+  let sourceVaultInputs: PublicInputs & PrivateInputs;
   let accountsTree1: KVMerkleTree;
   let merkleTreeData1: MerkleTreeData;
   let accountsTree2: KVMerkleTree;
+  let accountsTree3: KVMerkleTree;
   let merkleTreeData2: MerkleTreeData;
+  let merkleTreeData3: MerkleTreeData;
   let prover: HydraS2Prover;
   let extraData: string;
   let source: SourceInput;
+  let sourceVault: SourceInput;
   let destination: DestinationInput;
   let sourceValue: BigNumber;
   let vault: VaultInput;
+  let sourceVaultId: string;
 
   before(async () => {
     poseidon = await buildPoseidon();
@@ -51,6 +56,7 @@ describe("Hydra S2 Circuits", () => {
     const signers = await hre.ethers.getSigners();
     const vaultSecret = BigNumber.from("0x123456");
     const vaultNamespace = BigNumber.from(123);
+    const sourceVaultNamespace = BigNumber.from(456);
     vault = {
       secret: vaultSecret,
       namespace: vaultNamespace,
@@ -103,8 +109,21 @@ describe("Hydra S2 Circuits", () => {
       ACCOUNTS_TREE_HEIGHT
     );
 
+    sourceVaultId = poseidon([vaultSecret, sourceVaultNamespace]).toHexString();
+    merkleTreeData3 = {
+      [sourceVaultId]: 4,
+      [BigNumber.from(1).toHexString()]: 2,
+      [BigNumber.from(2).toHexString()]: 5
+    };
+    accountsTree3 = new KVMerkleTree(
+      merkleTreeData3,
+      poseidon,
+      ACCOUNTS_TREE_HEIGHT
+    );
+
     registryTree = new KVMerkleTree(
       {
+        [accountsTree3.getRoot().toHexString()]: 2,
         [accountsTree1.getRoot().toHexString()]: 1,
         [accountsTree2.getRoot().toHexString()]: 0,
       },
@@ -116,6 +135,12 @@ describe("Hydra S2 Circuits", () => {
 
     extraData = "0x123345";
 
+    sourceVault = {
+      identifier: sourceVaultId,
+      namespace: sourceVaultNamespace,
+      secret: vaultSecret,
+      verificationEnabled: true,
+    };
     source = {
       ...accounts[0],
       verificationEnabled: true,
@@ -130,7 +155,7 @@ describe("Hydra S2 Circuits", () => {
     );
   });
 
-  describe("Generating proof of a statement in the vault", async () => {
+  describe("Generating proof of a claim in the vault thanks to HydraS2Account Source", async () => {
     it("Snark proof of vault identifier for a specific vault namespace", async () => {
       const { privateInputs, publicInputs } = await prover.generateInputs({
         vault,
@@ -190,7 +215,7 @@ describe("Hydra S2 Circuits", () => {
           identifier: destination.identifier,
           verificationEnabled: false,
         },
-        statement: {
+        claim: {
           value: sourceValue,
           accountsTree: accountsTree1,
           registryTree,
@@ -205,12 +230,54 @@ describe("Hydra S2 Circuits", () => {
       await circuitTester.checkConstraints(w);
     });
 
+    it("Snark proof without vault namespace", async () => {
+      const { privateInputs, publicInputs } = await prover.generateInputs({
+        vault: {
+          secret: vault.secret
+        },
+        source: sourceVault,
+        destination,
+        claim: {
+          value: merkleTreeData3[sourceVaultId],
+          accountsTree: accountsTree3,
+          registryTree,
+          comparator: 0,
+        },
+        requestIdentifier,
+      });
+      
+      inputs = { ...privateInputs, ...publicInputs };
+
+      const w = await circuitTester.calculateWitness(inputs, true);
+      await circuitTester.checkConstraints(w);
+    });
+
+    it("Snark proof using a VaultAccount as a source", async () => {
+      const { privateInputs, publicInputs } = await prover.generateInputs({
+        vault,
+        source: sourceVault,
+        destination,
+        claim: {
+          value: merkleTreeData3[sourceVaultId],
+          accountsTree: accountsTree3,
+          registryTree,
+          comparator: 0,
+        },
+        requestIdentifier,
+      });
+      
+      sourceVaultInputs = { ...privateInputs, ...publicInputs };
+
+      const w = await circuitTester.calculateWitness(inputs, true);
+      await circuitTester.checkConstraints(w);
+    });
+
     it("Snark proof of simple value in a merkleTree with simple proofIdentifier", async () => {
       const { privateInputs, publicInputs } = await prover.generateInputs({
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: sourceValue,
           accountsTree: accountsTree1,
           registryTree,
@@ -226,6 +293,7 @@ describe("Hydra S2 Circuits", () => {
     });
   });
 
+  
   describe("Verifying accountsTree and registryTree are good", async () => {
     it("Should throw when using an Accounts tree with wrong height", async () => {
       const accountsTree3 = new KVMerkleTree(merkleTreeData1, poseidon);
@@ -246,7 +314,7 @@ describe("Hydra S2 Circuits", () => {
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(1),
           registryTree: registryTree3,
           accountsTree: accountsTree3,
@@ -283,7 +351,7 @@ describe("Hydra S2 Circuits", () => {
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(1),
           registryTree: registryTree3,
           accountsTree: accountsTree1,
@@ -357,6 +425,47 @@ describe("Hydra S2 Circuits", () => {
       );
     });
   });
+
+
+  describe("Verifying source constraints using a Vault as a source", async () => {
+    it("Should throw with wrong source address", async () => {
+      await circuitShouldFail(
+        circuitTester,
+        {
+          ...sourceVaultInputs,
+          ...{
+            sourceIdentifier: BigNumber.from(accounts[1].identifier).toBigInt(),
+          },
+        },
+        "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
+      );
+    });
+
+    it("Should throw with wrong vault secret", async () => {
+      await circuitShouldFail(
+        circuitTester,
+        {
+          ...sourceVaultInputs,
+          ...{ vaultSecret: BigNumber.from(123).toBigInt() },
+        },
+        "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
+      );
+    });
+
+    it("Should throw with wrong sourceNamespace", async () => {
+      await circuitShouldFail(
+        circuitTester,
+        {
+          ...sourceVaultInputs,
+          ...{ sourceVaultNamespace: BigNumber.from(1).toBigInt() },
+        },
+        "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
+      );
+    });
+  });
+
+
+
 
   describe("Verifying vault constraints are good", async () => {
     it("Should throw with wrong vault identifier", async () => {
@@ -524,103 +633,103 @@ describe("Hydra S2 Circuits", () => {
   });
 
   describe("Verify the value selected by the user", async () => {
-    it("Should throw when using statementComparator < 0", async () => {
+    it("Should throw when using claimComparator < 0", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
           ...{
-            statementComparator: -5 as any, // Must force any to bypass typescript error
+            claimComparator: -5 as any, // Must force any to bypass typescript error
           },
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should throw when using statementComparator > 1", async () => {
+    it("Should throw when using claimComparator > 1", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
           ...{
-            statementComparator: 2 as any, // Must force any to bypass typescript error
+            claimComparator: 2 as any, // Must force any to bypass typescript error
           },
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should throw when using a value superior of the Merkle tree value for statementComparator == 1", async () => {
+    it("Should throw when using a value superior of the Merkle tree value for claimComparator == 1", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
-          ...{ statementValue: BigNumber.from(5).toBigInt() }, // the good one is value: 4
+          ...{ claimValue: BigNumber.from(5).toBigInt() }, // the good one is value: 4
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should throw when using a value superior of the Merkle tree value for statementComparator == 0", async () => {
+    it("Should throw when using a value superior of the Merkle tree value for claimComparator == 0", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
           ...{
-            statementValue: BigNumber.from(5).toBigInt(),
-            statementComparator: BigInt(0),
+            claimValue: BigNumber.from(5).toBigInt(),
+            claimComparator: BigInt(0),
           }, // the good one is value: 4
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should throw when using negative value for statementComparator == 1", async () => {
+    it("Should throw when using negative value for claimComparator == 1", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
-          ...{ statementValue: BigNumber.from(-5).toBigInt() }, // the good one is value: 4
+          ...{ claimValue: BigNumber.from(-5).toBigInt() }, // the good one is value: 4
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should throw when using negative value for statementComparator == 0", async () => {
+    it("Should throw when using negative value for claimComparator == 0", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
           ...{
-            statementValue: BigNumber.from(-5).toBigInt(),
-            statementComparator: BigInt(0),
+            claimValue: BigNumber.from(-5).toBigInt(),
+            claimComparator: BigInt(0),
           }, // the good one is value: 4
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should throw when using a value inferior of the Merkle tree value for statementComparator == 1", async () => {
+    it("Should throw when using a value inferior of the Merkle tree value for claimComparator == 1", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
           ...{
-            statementComparator: BigInt(1),
-            statementValue: BigNumber.from(3).toBigInt(),
+            claimComparator: BigInt(1),
+            claimValue: BigNumber.from(3).toBigInt(),
           }, // the good one is value: 4
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should generate a Snark proof when using a value inferior of the Merkle tree value for statementComparator == 0", async () => {
+    it("Should generate a Snark proof when using a value inferior of the Merkle tree value for claimComparator == 0", async () => {
       const w = await circuitTester.calculateWitness(
         {
           ...inputs,
           ...{
-            statementValue: BigNumber.from(3),
-            statementComparator: 0,
+            claimValue: BigNumber.from(3),
+            claimComparator: 0,
           }, // the good one is value: 4
         },
         true

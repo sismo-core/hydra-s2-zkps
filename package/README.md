@@ -88,10 +88,10 @@ const destination: DestinationInput = {
     chainId: 1,
 }
 
-const statement: StatementInput = {
+const claim: ClaimInput = {
     value?: BigNumberish;
-    // A comparator of 0 means the accounts value in the tree can be more than the value in the statement
-    // A comparator of 1 means the accounts value in the tree must be equal to the value in the statement
+    // A comparator of 0 means the accounts value in the tree can be more than the value in the claim
+    // A comparator of 1 means the accounts value in the tree must be equal to the value in the claim
     comparator?: number;
     registryTree: KVMerkleTree;
     accountsTree: KVMerkleTree;
@@ -101,7 +101,7 @@ const params = {
     vault,
     source,
     destination,
-    statement,
+    claim,
     requestIdentifier
 }
 
@@ -124,11 +124,11 @@ try {
 | ---------- | -------------- | ------------- |
 | source | HydraS2Account | Source account |
 | destination | HydraS2Account | Destination account |
-| statementValue | BigNumberish | Must be 0 <= statementValue <= accountValue if statementComparator is false or statementValue = accountValue if statementComparator is true |
+| claimValue | BigNumberish | Must be 0 <= claimValue <= accountValue if claimComparator is false or claimValue = accountValue if claimComparator is true |
 | chainId | BigNumberish | Chain id |
 | accountsTree | MerkleTree | Merkle tree constituted which include the source and a value |
 | requestIdentifier | BigNumberish | proofIdentifier = hash((hash(source.secret, 1), requestIdentifier) |
-| statementComparator | boolean | Define if the value is strict or not |
+| claimComparator | boolean | Define if the value is strict or not |
 
 ``` javascript
 export type HydraS2Account = { 
