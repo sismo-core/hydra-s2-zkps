@@ -40,7 +40,7 @@ describe("Hydra S2 Prover", () => {
   let destination: DestinationInput;
   let sourceValue: BigNumber;
   let snarkProof: SnarkProof;
-  let statementComparator: 0 | 1;
+  let claimComparator: 0 | 1;
   let vault: VaultInput;
   let sourceVault: SourceInput;
 
@@ -139,7 +139,7 @@ describe("Hydra S2 Prover", () => {
       merkleTreeData1[BigNumber.from(source.identifier).toHexString()]
     );
 
-    statementComparator = registryTree
+    claimComparator = registryTree
       .getValue(accountsTree1.getRoot().toHexString())
       .toNumber() as 0 | 1;
   });
@@ -152,7 +152,7 @@ describe("Hydra S2 Prover", () => {
       },
       source,
       destination,
-      statement: {
+      claim: {
         value: sourceValue,
         comparator: 0,
         accountsTree: accountsTree1,
@@ -187,7 +187,7 @@ describe("Hydra S2 Prover", () => {
       },
       source: sourceVault,
       destination,
-      statement: {
+      claim: {
         value: sourceValue,
         comparator: 0,
         accountsTree: accountsTree3,
@@ -220,7 +220,7 @@ describe("Hydra S2 Prover", () => {
       vault,
       source,
       destination,
-      statement: {
+      claim: {
         value: sourceValue,
         comparator: 0,
         accountsTree: accountsTree1,
@@ -262,7 +262,7 @@ describe("Hydra S2 Prover", () => {
         verificationEnabled: true,
       },
       destination,
-      statement: {
+      claim: {
         value: account19Value,
         comparator: 1,
         accountsTree: accountsTree1,
@@ -334,7 +334,7 @@ describe("Hydra S2 Prover", () => {
       },
       source: sourceVault,
       destination,
-      statement: {
+      claim: {
         value: sourceValue,
         accountsTree: accountsTree3,
         registryTree,
@@ -353,7 +353,7 @@ describe("Hydra S2 Prover", () => {
         identifier: destination.identifier,
         verificationEnabled: false,
       },
-      statement: {
+      claim: {
         value: sourceValue,
         comparator: 0,
         accountsTree: accountsTree1,
@@ -381,7 +381,7 @@ describe("Hydra S2 Prover", () => {
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           accountsTree: accountsTree2,
           registryTree: registryTree2,
           value: sourceValue,
@@ -409,7 +409,7 @@ describe("Hydra S2 Prover", () => {
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: sourceValue,
           registryTree: registryTree3,
           accountsTree: accountsTree1,
@@ -431,7 +431,7 @@ describe("Hydra S2 Prover", () => {
           namespace: BigNumber.from(3)
         },
         destination,
-        statement: {
+        claim: {
           value: sourceValue,
           comparator: 0,
           accountsTree: accountsTree3,
@@ -453,7 +453,7 @@ describe("Hydra S2 Prover", () => {
         verificationEnabled: false
       },
       destination,
-      statement: {
+      claim: {
         value: sourceValue,
         comparator: 0,
         accountsTree: accountsTree3,
@@ -472,7 +472,7 @@ describe("Hydra S2 Prover", () => {
         verificationEnabled: false
       },
       destination,
-      statement: {
+      claim: {
         value: sourceValue,
         comparator: 0,
         accountsTree: accountsTree1,
@@ -491,7 +491,7 @@ describe("Hydra S2 Prover", () => {
           secret: BigNumber.from(3),
         },
         destination,
-        statement: {
+        claim: {
           value: sourceValue,
           comparator: 0,
           accountsTree: accountsTree1,
@@ -512,7 +512,7 @@ describe("Hydra S2 Prover", () => {
         },
         source: sourceVault,
         destination,
-        statement: {
+        claim: {
           value: sourceValue,
           comparator: 0,
           accountsTree: accountsTree3,
@@ -539,7 +539,7 @@ describe("Hydra S2 Prover", () => {
           ],
         },
         destination,
-        statement: {
+        claim: {
           value: sourceValue,
           comparator: 0,
           accountsTree: accountsTree1,
@@ -561,7 +561,7 @@ describe("Hydra S2 Prover", () => {
           ...destination,
           secret: BigNumber.from(3),
         },
-        statement: {
+        claim: {
           value: sourceValue,
           comparator: 0,
           accountsTree: accountsTree1,
@@ -587,7 +587,7 @@ describe("Hydra S2 Prover", () => {
             BigNumber.from(3),
           ],
         },
-        statement: {
+        claim: {
           value: sourceValue,
           comparator: 0,
           accountsTree: accountsTree1,
@@ -600,13 +600,13 @@ describe("Hydra S2 Prover", () => {
     }
   });
 
-  it("Should throw when sending statementValue > sourceValue", async () => {
+  it("Should throw when sending claimValue > sourceValue", async () => {
     try {
       await prover.generateSnarkProof({
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(10),
           comparator: 0,
           accountsTree: accountsTree1,
@@ -616,18 +616,18 @@ describe("Hydra S2 Prover", () => {
       });
     } catch (e: any) {
       expect(e.message).to.equal(
-        `Statement value 10 can't be superior to Source value`
+        `Claim value 10 can't be superior to Source value`
       );
     }
   });
 
-  it("Should throw when sending statementValue is not equal to sourceValue and statementComparator == 1 (EQ)", async () => {
+  it("Should throw when sending claimValue is not equal to sourceValue and claimComparator == 1 (EQ)", async () => {
     try {
       await prover.generateSnarkProof({
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(3),
           comparator: 1,
           accountsTree: accountsTree1,
@@ -637,18 +637,18 @@ describe("Hydra S2 Prover", () => {
       });
     } catch (e: any) {
       expect(e.message).to.equal(
-        `Statement value 3 must be equal with Source value when statementComparator == 1`
+        `Claim value 3 must be equal with Source value when claimComparator == 1`
       );
     }
   });
 
-  it("Should throw when sending statementValue negative", async () => {
+  it("Should throw when sending claimValue negative", async () => {
     try {
       await prover.generateSnarkProof({
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(-3),
           comparator: 0,
           accountsTree: accountsTree1,
@@ -657,7 +657,7 @@ describe("Hydra S2 Prover", () => {
         requestIdentifier,
       });
     } catch (e: any) {
-      expect(e.message).to.equal(`Statement value -3 can't be negative`);
+      expect(e.message).to.equal(`Claim value -3 can't be negative`);
     }
   });
 
@@ -679,7 +679,7 @@ describe("Hydra S2 Prover", () => {
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(4),
           accountsTree: accountsTree,
           registryTree,
@@ -704,7 +704,7 @@ describe("Hydra S2 Prover", () => {
           verificationEnabled: true,
         },
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(4),
           comparator: 0,
           accountsTree: accountsTree1,

@@ -155,7 +155,7 @@ describe("Hydra S2 Circuits", () => {
     );
   });
 
-  describe("Generating proof of a statement in the vault thanks to HydraS2Account Source", async () => {
+  describe("Generating proof of a claim in the vault thanks to HydraS2Account Source", async () => {
     it("Snark proof of vault identifier for a specific vault namespace", async () => {
       const { privateInputs, publicInputs } = await prover.generateInputs({
         vault,
@@ -215,7 +215,7 @@ describe("Hydra S2 Circuits", () => {
           identifier: destination.identifier,
           verificationEnabled: false,
         },
-        statement: {
+        claim: {
           value: sourceValue,
           accountsTree: accountsTree1,
           registryTree,
@@ -237,7 +237,7 @@ describe("Hydra S2 Circuits", () => {
         },
         source: sourceVault,
         destination,
-        statement: {
+        claim: {
           value: merkleTreeData3[sourceVaultId],
           accountsTree: accountsTree3,
           registryTree,
@@ -257,7 +257,7 @@ describe("Hydra S2 Circuits", () => {
         vault,
         source: sourceVault,
         destination,
-        statement: {
+        claim: {
           value: merkleTreeData3[sourceVaultId],
           accountsTree: accountsTree3,
           registryTree,
@@ -277,7 +277,7 @@ describe("Hydra S2 Circuits", () => {
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: sourceValue,
           accountsTree: accountsTree1,
           registryTree,
@@ -314,7 +314,7 @@ describe("Hydra S2 Circuits", () => {
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(1),
           registryTree: registryTree3,
           accountsTree: accountsTree3,
@@ -351,7 +351,7 @@ describe("Hydra S2 Circuits", () => {
         vault,
         source,
         destination,
-        statement: {
+        claim: {
           value: BigNumber.from(1),
           registryTree: registryTree3,
           accountsTree: accountsTree1,
@@ -633,103 +633,103 @@ describe("Hydra S2 Circuits", () => {
   });
 
   describe("Verify the value selected by the user", async () => {
-    it("Should throw when using statementComparator < 0", async () => {
+    it("Should throw when using claimComparator < 0", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
           ...{
-            statementComparator: -5 as any, // Must force any to bypass typescript error
+            claimComparator: -5 as any, // Must force any to bypass typescript error
           },
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should throw when using statementComparator > 1", async () => {
+    it("Should throw when using claimComparator > 1", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
           ...{
-            statementComparator: 2 as any, // Must force any to bypass typescript error
+            claimComparator: 2 as any, // Must force any to bypass typescript error
           },
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should throw when using a value superior of the Merkle tree value for statementComparator == 1", async () => {
+    it("Should throw when using a value superior of the Merkle tree value for claimComparator == 1", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
-          ...{ statementValue: BigNumber.from(5).toBigInt() }, // the good one is value: 4
+          ...{ claimValue: BigNumber.from(5).toBigInt() }, // the good one is value: 4
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should throw when using a value superior of the Merkle tree value for statementComparator == 0", async () => {
+    it("Should throw when using a value superior of the Merkle tree value for claimComparator == 0", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
           ...{
-            statementValue: BigNumber.from(5).toBigInt(),
-            statementComparator: BigInt(0),
+            claimValue: BigNumber.from(5).toBigInt(),
+            claimComparator: BigInt(0),
           }, // the good one is value: 4
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should throw when using negative value for statementComparator == 1", async () => {
+    it("Should throw when using negative value for claimComparator == 1", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
-          ...{ statementValue: BigNumber.from(-5).toBigInt() }, // the good one is value: 4
+          ...{ claimValue: BigNumber.from(-5).toBigInt() }, // the good one is value: 4
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should throw when using negative value for statementComparator == 0", async () => {
+    it("Should throw when using negative value for claimComparator == 0", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
           ...{
-            statementValue: BigNumber.from(-5).toBigInt(),
-            statementComparator: BigInt(0),
+            claimValue: BigNumber.from(-5).toBigInt(),
+            claimComparator: BigInt(0),
           }, // the good one is value: 4
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should throw when using a value inferior of the Merkle tree value for statementComparator == 1", async () => {
+    it("Should throw when using a value inferior of the Merkle tree value for claimComparator == 1", async () => {
       await circuitShouldFail(
         circuitTester,
         {
           ...inputs,
           ...{
-            statementComparator: BigInt(1),
-            statementValue: BigNumber.from(3).toBigInt(),
+            claimComparator: BigInt(1),
+            claimValue: BigNumber.from(3).toBigInt(),
           }, // the good one is value: 4
         },
         "Error: Assert Failed.\nError in template ForceEqualIfEnabled"
       );
     });
 
-    it("Should generate a Snark proof when using a value inferior of the Merkle tree value for statementComparator == 0", async () => {
+    it("Should generate a Snark proof when using a value inferior of the Merkle tree value for claimComparator == 0", async () => {
       const w = await circuitTester.calculateWitness(
         {
           ...inputs,
           ...{
-            statementValue: BigNumber.from(3),
-            statementComparator: 0,
+            claimValue: BigNumber.from(3),
+            claimComparator: 0,
           }, // the good one is value: 4
         },
         true

@@ -37,10 +37,10 @@ export type VaultInput = {
   namespace?: BigNumberish;
 };
 
-export type StatementInput = {
+export type ClaimInput = {
   value?: BigNumberish;
-  // A comparator of 0 means the accounts value in the tree can be more than the value in the statement
-  // A comparator of 1 means the accounts value in the tree must be equal to the value in the statement
+  // A comparator of 0 means the accounts value in the tree can be more than the value in the claim
+  // A comparator of 1 means the accounts value in the tree must be equal to the value in the claim
   comparator?: number;
   registryTree: KVMerkleTree;
   accountsTree: KVMerkleTree;
@@ -54,7 +54,7 @@ export type UserParams = {
   vault?: VaultInput;
   source?: SourceInput;
   destination?: DestinationInput;
-  statement?: StatementInput;
+  claim?: ClaimInput;
   requestIdentifier?: BigNumberish;
   extraData?: BigNumberish;
 };
@@ -70,10 +70,10 @@ export type formattedUserParams = {
   destinationIdentifier: BigInt;
   destinationSecret: BigInt;
   destinationCommitmentReceipt: BigInt[];
-  statementValue: BigInt;
+  claimValue: BigInt;
   requestIdentifier: BigInt;
   proofIdentifier: BigInt;
-  statementComparator: BigInt;
+  claimComparator: BigInt;
   sourceVerificationEnabled: BigInt;
   destinationVerificationEnabled: BigInt;
   extraData: BigInt;
@@ -95,7 +95,7 @@ export class HydraS2Prover {
     vault,
     source,
     destination,
-    statement,
+    claim,
     requestIdentifier: requestIdentifierInput,
     extraData: extraDataInput,
   }: UserParams): Promise<formattedUserParams> {
@@ -145,11 +145,11 @@ export class HydraS2Prover {
         ? poseidon([sourceSecretHash, requestIdentifier]).toBigInt()
         : BigInt(0);
 
-    const statementValue = BigNumber.from(statement?.value ?? 0).toBigInt();
+    const claimValue = BigNumber.from(claim?.value ?? 0).toBigInt();
     // requestIdentifier = BigNumber.from(requestIdentifier ?? 0);
 
-    const statementComparator =
-      statement?.comparator === 1 ? BigInt(1) : BigInt(0);
+    const claimComparator =
+      claim?.comparator === 1 ? BigInt(1) : BigInt(0);
 
     const sourceVerificationEnabled =
       source?.verificationEnabled === true ? BigInt(1) : BigInt(0);
@@ -170,9 +170,9 @@ export class HydraS2Prover {
       destinationSecret,
       destinationCommitmentReceipt,
       requestIdentifier,
-      statementValue,
+      claimValue,
       proofIdentifier,
-      statementComparator,
+      claimComparator,
       sourceVerificationEnabled,
       destinationVerificationEnabled,
       extraData: extraData,
@@ -183,7 +183,7 @@ export class HydraS2Prover {
     vault,
     source,
     destination,
-    statement,
+    claim,
     requestIdentifier: requestIdentifierParam,
     extraData: extraDataInput,
   }: UserParams): Promise<Inputs> {
@@ -199,9 +199,9 @@ export class HydraS2Prover {
       destinationSecret,
       destinationCommitmentReceipt,
       requestIdentifier,
-      statementValue,
+      claimValue,
       proofIdentifier,
-      statementComparator,
+      claimComparator,
       sourceVerificationEnabled,
       destinationVerificationEnabled,
       extraData: extraData,
@@ -209,13 +209,13 @@ export class HydraS2Prover {
       vault,
       source,
       destination,
-      statement,
+      claim,
       requestIdentifier: requestIdentifierParam,
       extraData: extraDataInput,
     });
 
-    const accountsTree = statement?.accountsTree;
-    const registryTree = statement?.registryTree;
+    const accountsTree = claim?.accountsTree;
+    const registryTree = claim?.registryTree;
 
     if (accountsTree !== undefined && registryTree === undefined) {
       throw new Error("accountsTree and registryTree must be defined together");
@@ -282,9 +282,9 @@ export class HydraS2Prover {
       registryTreeRoot: registryTreeRoot,
       requestIdentifier: requestIdentifier,
       proofIdentifier: proofIdentifier,
-      statementValue: statementValue,
+      claimValue: claimValue,
       accountsTreeValue: accountsTreeValue,
-      statementComparator,
+      claimComparator,
       sourceVerificationEnabled,
       destinationVerificationEnabled,
       extraData,
@@ -300,7 +300,7 @@ export class HydraS2Prover {
     vault,
     source,
     destination,
-    statement,
+    claim,
     requestIdentifier: requestIdentifierParam,
   }: UserParams) {
     const {
@@ -313,22 +313,22 @@ export class HydraS2Prover {
       destinationIdentifier,
       destinationSecret,
       destinationCommitmentReceipt,
-      statementValue,
+      claimValue,
       proofIdentifier,
-      statementComparator,
+      claimComparator,
       sourceVerificationEnabled,
       destinationVerificationEnabled,
     } = await this.format({
       vault,
       source,
       destination,
-      statement,
+      claim,
       requestIdentifier: requestIdentifierParam,
     });
 
-    const accountsTree = statement?.accountsTree;
+    const accountsTree = claim?.accountsTree;
     if (accountsTree) {
-      const registryTree = statement?.registryTree;
+      const registryTree = claim?.registryTree;
       if (!registryTree) {
         throw new Error(
           "Registry tree should be defined when the accountsTree is defined"
@@ -364,19 +364,19 @@ export class HydraS2Prover {
         );
       }
 
-      if (statementValue > BigInt(sourceValue)) {
+      if (claimValue > BigInt(sourceValue)) {
         throw new Error(
-          `Statement value ${statementValue} can't be superior to Source value`
+          `Claim value ${claimValue} can't be superior to Source value`
         );
       }
 
-      if (statementValue < BigInt(0)) {
-        throw new Error(`Statement value ${statementValue} can't be negative`);
+      if (claimValue < BigInt(0)) {
+        throw new Error(`Claim value ${claimValue} can't be negative`);
       }
 
-      if (statementComparator === BigInt(1) && statementValue !== sourceValue) {
+      if (claimComparator === BigInt(1) && claimValue !== sourceValue) {
         throw new Error(
-          `Statement value ${statementValue} must be equal with Source value when statementComparator == 1`
+          `Claim value ${claimValue} must be equal with Source value when claimComparator == 1`
         );
       }
     }
@@ -435,7 +435,7 @@ export class HydraS2Prover {
     vault,
     source,
     destination,
-    statement,
+    claim,
     requestIdentifier,
     extraData,
   }: UserParams): Promise<SnarkProof> {
@@ -443,7 +443,7 @@ export class HydraS2Prover {
       vault,
       source,
       destination,
-      statement,
+      claim,
       requestIdentifier,
       extraData,
     });
@@ -452,7 +452,7 @@ export class HydraS2Prover {
       vault,
       source,
       destination,
-      statement,
+      claim,
       requestIdentifier,
       extraData,
     });

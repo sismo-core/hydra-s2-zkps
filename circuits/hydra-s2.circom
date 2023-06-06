@@ -36,9 +36,9 @@ template hydraS2(registryTreeHeight, accountsTreeHeight) {
   signal input registryTreeRoot;
   signal input requestIdentifier;
   signal input proofIdentifier;
-  signal input statementValue;
+  signal input claimValue;
   signal input accountsTreeValue;
-  signal input statementComparator; 
+  signal input claimComparator; 
   signal input vaultIdentifier;
   signal input vaultNamespace;
   signal input sourceVerificationEnabled;
@@ -129,22 +129,22 @@ template hydraS2(registryTreeHeight, accountsTreeHeight) {
     registryTreePathVerifier.pathIndices[i] <== registryMerklePathIndices[i];
   }
 
-  // Verify statement value validity
-  // 0 => sourceValue can be higher than statementValue 
-  // 1 => sourceValue and statementValue should be equal 
+  // Verify claim value validity
+  // 0 => sourceValue can be higher than claimValue 
+  // 1 => sourceValue and claimValue should be equal 
   // Prevent overflow of comparator range
   component sourceInRange = Num2Bits(252);
   sourceInRange.in <== sourceValue;
-  component statementInRange = Num2Bits(252);
-  statementInRange.in <== statementValue;
-  // 0 <= statementValue <= sourceValue
+  component claimInRange = Num2Bits(252);
+  claimInRange.in <== claimValue;
+  // 0 <= claimValue <= sourceValue
   component leq = LessEqThan(252);
-  leq.in[0] <== statementValue;
+  leq.in[0] <== claimValue;
   leq.in[1] <== sourceValue;
   leq.out === 1;
-  // If statementComparator == 1 then statementValue == sourceValue
-  0 === (statementComparator-1)*statementComparator;
-  sourceValue === sourceValue+((statementValue-sourceValue)*statementComparator);
+  // If claimComparator == 1 then claimValue == sourceValue
+  0 === (claimComparator-1)*claimComparator;
+  sourceValue === sourceValue+((claimValue-sourceValue)*claimComparator);
 
   // Verify the proofIdentifier is valid
   // compute the sourceSecretHash using the hash of the sourceSecret
@@ -184,4 +184,4 @@ template hydraS2(registryTreeHeight, accountsTreeHeight) {
   extraDataSquare <== extraData * extraData;
 }
 
-component main {public [commitmentMapperPubKey, registryTreeRoot, vaultNamespace, vaultIdentifier, requestIdentifier, proofIdentifier, destinationIdentifier, statementValue, extraData, accountsTreeValue, statementComparator, sourceVerificationEnabled, destinationVerificationEnabled]} = hydraS2(20,20);
+component main {public [commitmentMapperPubKey, registryTreeRoot, vaultNamespace, vaultIdentifier, requestIdentifier, proofIdentifier, destinationIdentifier, claimValue, extraData, accountsTreeValue, claimComparator, sourceVerificationEnabled, destinationVerificationEnabled]} = hydraS2(20,20);

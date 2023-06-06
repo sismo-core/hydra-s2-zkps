@@ -22,9 +22,9 @@ export type PublicInputs = {
   requestIdentifier: BigInt;
   proofIdentifier: BigInt;
   destinationIdentifier: BigInt;
-  statementValue: BigInt;
+  claimValue: BigInt;
   accountsTreeValue: BigInt;
-  statementComparator: BigInt;
+  claimComparator: BigInt;
   sourceVerificationEnabled: BigInt;
   destinationVerificationEnabled: BigInt;
   extraData: BigInt;
